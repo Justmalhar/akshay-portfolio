@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { experience, roles } from "@/lib/content";
 import { CUE_WHITE, clamp, drawBall, drawCue, drawTable, easeOut, lerp, Vec } from "@/lib/draw";
-import { scrollToId } from "@/lib/hooks";
+import { scrollToId, useCompact } from "@/lib/hooks";
 
 const TW = 1200, TH = 600, TR = 22;
 const P = { tl: { x: 0, y: 0 }, tr: { x: TW, y: 0 }, bl: { x: 0, y: TH }, br: { x: TW, y: TH }, tm: { x: TW / 2, y: 0 }, bm: { x: TW / 2, y: TH } };
@@ -51,9 +51,15 @@ export default function Experience() {
   const cv = useRef<HTMLCanvasElement>(null);
   const [step, setStep] = useState(0);
   const [cleared, setCleared] = useState(false);
+  const compact = useCompact();
   const n = roles.length;
 
   useEffect(() => {
+    // On phones the section is a plain stacked list (see globals.css), so none of this runs.
+    if (compact) {
+      if (wrap.current) wrap.current.style.height = "";
+      return;
+    }
     const shots = buildShots();
     const canvas = cv.current!, c = canvas.getContext("2d")!;
     const stepPx = () => innerHeight * 0.85;
@@ -94,7 +100,7 @@ export default function Experience() {
     };
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); removeEventListener("resize", size); };
-  }, [n]);
+  }, [n, compact]);
 
   return (
     <>
@@ -117,7 +123,7 @@ export default function Experience() {
             </div>
             <div className="shots">
               {roles.map((r, i) => (
-                <article className={`shot${i === step ? " on" : ""}`} key={r.title} aria-hidden={i !== step}>
+                <article className={`shot${i === step ? " on" : ""}`} key={r.title} style={{ ["--ball" as string]: r.ball }}>
                   <div className="yr">{r.years}</div>
                   <div className="role">{r.role}</div>
                   <h3>{r.title}</h3>

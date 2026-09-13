@@ -23,7 +23,7 @@ export default function Cursor() {
       if (acc > 18) { acc = 0; ripples.push({ x: mx, y: my, r: 6, life: 1 }); }
       const t = e.target as Element | null;
       el.classList.toggle("big", !!t?.closest("a,button,[data-hover]"));
-      el.classList.toggle("hidden", !!t?.closest("[data-nocursor]"));
+      el.classList.toggle("hidden", !!t?.closest("[data-nocursor]") && !t?.closest("[data-cursor-on]"));
     };
     const onDown = (e: MouseEvent) => { if (!(e.target as Element)?.closest("[data-nocursor]")) ripples.push({ x: e.clientX, y: e.clientY, r: 10, life: 1, strong: true }); };
     const onLeave = () => el.classList.add("hidden");

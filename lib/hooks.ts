@@ -16,6 +16,24 @@ export function useMotionAllowed() {
   return ok;
 }
 
+/** Reactive media query. Starts false on the server, so keep layout in CSS and use this only for behaviour. */
+export function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const update = () => setMatches(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [query]);
+  return matches;
+}
+
+/** Phones, narrow windows and reduced-motion: the scroll-driven table is skipped and roles stack. */
+export function useCompact() {
+  return useMediaQuery("(max-width: 960px), (prefers-reduced-motion: reduce)");
+}
+
 /** Smoothly scroll to an element id (works with sticky/pinned sections). */
 export function scrollToId(id: string) {
   const el = document.getElementById(id);

@@ -25,6 +25,21 @@ npm run build && npm start   # production build
 npm run typecheck            # tsc --noEmit
 ```
 
+Two Playwright checks run against a running server:
+
+```bash
+node scripts/audit-readability.mjs http://localhost:3000
+```
+
+Walks every text element at 360, 390, 768 and 1440 pixels wide and reports contrast against
+WCAG AA, body copy under 16px, anything under 12px, line length and tap targets under 44px.
+
+```bash
+node scripts/test-game.mjs http://localhost:3000
+```
+
+Plays the pool table to a clean sweep and checks the win card, the confetti and the reset.
+
 ## Edit the content
 
 Everything written on the page lives in [`lib/content.ts`](lib/content.ts):
@@ -114,8 +129,8 @@ ranked on.
 | Page order | `app/page.tsx` | Hero → playable table → experience → Vezilo → prints → lounge → contact |
 | Background break / re-rack | `components/TableBackground.tsx` | Fixed canvas driven by scroll position; off on touch, narrow screens and reduced motion |
 | Cue-ball cursor + ripples | `components/Cursor.tsx` | Same on/off rules; hides itself over the playable table |
-| Playable table | `components/PoolGame.tsx` | Six balls + cue ball, aim with the pointer, click/tap to shoot, power by distance, pockets, scratches, re-rack. Listens for the `portfolio:rerack` event |
-| Five shots (experience) | `components/Experience.tsx` | Pinned section; one ball potted per role, fully scrubbable, skip link |
+| Playable table | `components/PoolGame.tsx` | Six balls + cue ball, aim with the pointer, click/tap to shoot, power by distance, pockets, scratches, re-rack. Clearing the table fires confetti side cannons and a win card. Listens for the `portfolio:rerack` event |
+| Five shots (experience) | `components/Experience.tsx` | Pinned section; one ball potted per role, fully scrubbable, skip link. On phones and with reduced motion it becomes a plain stacked list at full type size |
 | Toolkit | `components/Toolkit.tsx` | Grouped skills plus the recognition footnote |
 | Prints rail | `components/Prints.tsx` | Vertical scroll drives the horizontal wall |
 | Contact + Re-rack | `components/Contact.tsx` | Re-rack button scrolls to the top and resets the table |

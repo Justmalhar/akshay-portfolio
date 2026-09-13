@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import confetti from "canvas-confetti";
 import { CUE_WHITE, clamp, drawBall, drawCue, drawTable, Vec } from "@/lib/draw";
 
 /* Table space. The canvas is scaled to fit its container, so all maths lives in these units. */
@@ -38,6 +39,20 @@ function castAim(cue: Ball, dir: Vec, balls: Ball[]) {
   const ty = dir.y > 0 ? (MAXY - cue.y) / dir.y : dir.y < 0 ? (MIN - cue.y) / dir.y : Infinity;
   const wall = Math.min(tx, ty);
   return hitBall && best < wall ? { t: best, ball: hitBall } : { t: wall, ball: null };
+}
+
+/** Side cannons, fired from both edges for three seconds when the table is cleared. */
+function celebrate() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const end = Date.now() + 3000;
+  const colors = ["#c9a45c", "#e7c980", "#f2e8d3", "#c9313d", "#e9c33d", "#1d7a3d"];
+  const frame = () => {
+    if (Date.now() > end) return;
+    confetti({ particleCount: 2, angle: 60, spread: 55, startVelocity: 60, origin: { x: 0, y: 0.5 }, colors });
+    confetti({ particleCount: 2, angle: 120, spread: 55, startVelocity: 60, origin: { x: 1, y: 0.5 }, colors });
+    requestAnimationFrame(frame);
+  };
+  frame();
 }
 
 export default function PoolGame() {
@@ -85,7 +100,12 @@ export default function PoolGame() {
       }
       const remaining = s.balls.filter((b) => !b.cue && !b.potted).length;
       setLeft(remaining); publish();
-      if (remaining === 0) { s.status = "cleared"; setStatus("cleared"); setQuiet(false); setMsg(`Table cleared in ${s.shots} shot${s.shots === 1 ? "" : "s"}. Re-rack?`); return; }
+      if (remaining === 0) {
+        s.status = "cleared"; setStatus("cleared"); setQuiet(false);
+        setMsg(`Table cleared in ${s.shots} shot${s.shots === 1 ? "" : "s"}.`);
+        celebrate();
+        return;
+      }
       s.status = "aim"; setStatus("aim");
       if (s.scratched) { setQuiet(false); setMsg("Scratch. Cue ball respotted, play on."); }
       else if (s.pottedThisShot > 0) { setQuiet(false); setMsg(s.pottedThisShot > 1 ? `${s.pottedThisShot} potted in one. Play on.` : remaining === 1 ? "Potted. One left." : "Potted. Play on."); }
@@ -182,6 +202,19 @@ export default function PoolGame() {
       <div className="tableWrap" ref={wrapRef} data-nocursor data-reveal>
         <canvas ref={cv} width={W} height={H} role="img" aria-label="A playable pool table with six balls and a cue ball" />
         <div className={`tableMsg${quiet ? " quiet" : ""}`} aria-live="polite">{msg}</div>
+        {status === "cleared" && (
+          <div className="winCard" data-cursor-on role="status" aria-live="polite">
+            <div className="winInner">
+              <span className="winKicker">Frame won</span>
+              <h3>Table <em>cleared.</em></h3>
+              <p>{shots} shot{shots === 1 ? "" : "s"}. {shots <= 8 ? "Tidy work." : "Got there in the end."}</p>
+              <div className="winCta">
+                <button className="btn small" onClick={reset}><span className="ball" style={{ background: "var(--yellow)" }} /> Rack them again</button>
+                <a className="btn ghost small" href="#work" onClick={(e) => { e.preventDefault(); document.getElementById("work")?.scrollIntoView({ behavior: "smooth" }); }}>On to the work ↓</a>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <div className="playFoot">
         <span className="hint">{touch ? "Tap · pot" : "Aim · click · pot"}{status === "cleared" ? " · cleared" : ""}</span>
