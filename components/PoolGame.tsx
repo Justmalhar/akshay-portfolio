@@ -10,6 +10,8 @@ const MIN = RAIL + R, MAXX = W - RAIL - R, MAXY = H - RAIL - R;
 const COLOURS = ["#e9c33d", "#1d7a3d", "#6b3b1e", "#2b5aa6", "#e98bb5", "#0f0f10"];
 const CUE_SPOT: Vec = { x: 300, y: 300 };
 const MAX_SPEED = 25, FRICTION = 0.982, STOP = 0.06, SUBSTEPS = 6, RESTITUTION = 0.8;
+/** Minimum pull-back, in table units, before a touch drag counts as a shot rather than a stray tap. */
+const DRAG_MIN = 50;
 
 type Ball = { x: number; y: number; vx: number; vy: number; c: string; potted: boolean; cue?: boolean };
 type Status = "aim" | "striking" | "moving" | "cleared";
@@ -64,7 +66,7 @@ export default function PoolGame() {
   const [quiet, setQuiet] = useState(false);
   const [status, setStatus] = useState<Status>("aim");
   const [touch, setTouch] = useState(false);
-  const g = useRef({ balls: rack(), status: "aim" as Status, pointer: null as Vec | null, strikeT: 0, pendingDir: { x: 1, y: 0 }, pendingPower: 0, shots: 0, pottedThisShot: 0, scratched: false });
+  const g = useRef({ balls: rack(), status: "aim" as Status, pointer: null as Vec | null, strikeT: 0, pendingDir: { x: 1, y: 0 }, pendingPower: 0, shots: 0, pottedThisShot: 0, scratched: false, dragging: false, isTouch: false, aimTag: "" });
 
   const publish = () => { const el = wrapRef.current; if (el) el.dataset.balls = JSON.stringify(g.current.balls.map((b) => ({ x: Math.round(b.x), y: Math.round(b.y), potted: b.potted, cue: !!b.cue }))); };
   const reset = () => {
@@ -75,21 +77,74 @@ export default function PoolGame() {
   useEffect(() => {
     const canvas = cv.current!, c = canvas.getContext("2d")!;
     const s = g.current; publish();
-    setTouch(window.matchMedia("(pointer: coarse)").matches);
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    s.isTouch = coarse;
+    setTouch(coarse);
+    if (coarse) setMsg("Your break. Drag back from the cue ball and let go.");
     const toTable = (e: PointerEvent): Vec => { const r = canvas.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }; };
-    const aimFrom = (p: Vec) => {
-      const cue = s.balls[0]; const dx = p.x - cue.x, dy = p.y - cue.y, d = Math.hypot(dx, dy) || 1;
-      return { dir: { x: dx / d, y: dy / d }, power: clamp((d - 30) / 380, 0.12, 1) };
+    /**
+     * Aim from a pointer position. `pull` inverts it for the touch slingshot: the ball travels
+     * away from your finger, so dragging back behind the ball is what aims it forwards.
+     */
+    const aimFrom = (p: Vec, pull = false) => {
+      const cue = s.balls[0];
+      const ox = p.x - cue.x, oy = p.y - cue.y;
+      const raw = Math.hypot(ox, oy), d = raw || 1, sign = pull ? -1 : 1;
+      /*
+       * A mouse has the whole table to click into, but a pulled-back finger runs out of screen
+       * near a rail, so touch reaches full power over a much shorter drag.
+       */
+      const power = pull ? clamp((raw - DRAG_MIN) / 150, 0.15, 1) : clamp((raw - 30) / 380, 0.12, 1);
+      return { dir: { x: (sign * ox) / d, y: (sign * oy) / d }, power, raw };
     };
-    const shoot = () => {
-      if (s.status !== "aim" || !s.pointer) return;
-      const { dir, power } = aimFrom(s.pointer);
+    /** Where the cue rests on a touch device before you touch it: lined up on the nearest ball. */
+    const restDir = (): Vec => {
+      const cue = s.balls[0];
+      let best: Vec = { x: 1, y: 0 }, bd = Infinity;
+      for (const b of s.balls) {
+        if (b.cue || b.potted) continue;
+        const dx = b.x - cue.x, dy = b.y - cue.y, d = Math.hypot(dx, dy) || 1;
+        if (d < bd) { bd = d; best = { x: dx / d, y: dy / d }; }
+      }
+      return best;
+    };
+    const fire = (dir: Vec, power: number) => {
       s.pendingDir = dir; s.pendingPower = power; s.strikeT = 0; s.status = "striking"; setStatus("striking");
     };
-    const onMove = (e: PointerEvent) => { s.pointer = toTable(e); };
-    const onLeave = () => { s.pointer = null; };
-    const onDown = (e: PointerEvent) => { if (e.button !== 0) return; s.pointer = toTable(e); shoot(); };
-    canvas.addEventListener("pointermove", onMove); canvas.addEventListener("pointerleave", onLeave); canvas.addEventListener("pointerdown", onDown);
+    const onDown = (e: PointerEvent) => {
+      if (s.status !== "aim") return;
+      if (e.pointerType === "touch") {
+        s.isTouch = true; s.dragging = true; s.pointer = toTable(e);
+        try { canvas.setPointerCapture(e.pointerId); } catch {}
+        e.preventDefault();
+        return;
+      }
+      if (e.button !== 0) return;
+      s.pointer = toTable(e);
+      const a = aimFrom(s.pointer);
+      fire(a.dir, a.power);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch" && !s.dragging) return;
+      s.pointer = toTable(e);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || !s.dragging) return;
+      s.dragging = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+      const a = aimFrom(toTable(e), true);
+      s.pointer = null;
+      if (s.status !== "aim") return;
+      if (a.raw >= DRAG_MIN) fire(a.dir, a.power);
+      else { setQuiet(true); setMsg("Pull back a little further, then let go."); }
+    };
+    const onCancel = () => { s.dragging = false; s.pointer = null; };
+    const onLeave = (e: PointerEvent) => { if (e.pointerType !== "touch") s.pointer = null; };
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointercancel", onCancel);
+    canvas.addEventListener("pointerleave", onLeave);
     const onRerack = () => reset(); addEventListener("portfolio:rerack", onRerack);
 
     const settle = () => {
@@ -153,26 +208,50 @@ export default function PoolGame() {
       drawTable(c, W, H, POCKETS, POCKET_R);
       for (const b of s.balls) if (!b.potted && !b.cue) drawBall(c, b.x, b.y, R, b.c);
       if (!cue.potted) {
-        if ((s.status === "aim" && s.pointer) || s.status === "striking") {
-          const { dir, power } = s.status === "aim" ? aimFrom(s.pointer!) : { dir: s.pendingDir, power: s.pendingPower };
-          if (s.status === "aim") {
+        /* Which cue to draw: the one being dragged, the one being swung, the mouse aim, or the resting cue. */
+        const aiming = s.status === "aim";
+        let dir: Vec | null = null, power = 0, meter = false, tag = "none";
+        if (s.status === "striking") { dir = s.pendingDir; power = s.pendingPower; tag = "strike"; }
+        else if (aiming && s.dragging && s.pointer) {
+          const a = aimFrom(s.pointer, true);
+          dir = a.dir; power = a.raw >= DRAG_MIN ? a.power : 0; meter = true; tag = "drag";
+        } else if (aiming && !s.isTouch && s.pointer) {
+          const a = aimFrom(s.pointer);
+          dir = a.dir; power = a.power; meter = true; tag = "hover";
+        } else if (aiming && s.isTouch) { dir = restDir(); tag = "rest"; }
+
+        if (dir) {
+          if (aiming) {
             const cast = castAim(cue, dir, s.balls);
             const gx = cue.x + dir.x * cast.t, gy = cue.y + dir.y * cast.t;
-            c.save(); c.setLineDash([4, 12]); c.lineWidth = 2; c.strokeStyle = "rgba(242,232,211,.38)";
+            c.save();
+            c.setLineDash([4, 12]); c.lineWidth = 2; c.strokeStyle = `rgba(242,232,211,${tag === "rest" ? 0.22 : 0.38})`;
             c.beginPath(); c.moveTo(cue.x + dir.x * R, cue.y + dir.y * R); c.lineTo(gx, gy); c.stroke(); c.setLineDash([]);
-            c.strokeStyle = "rgba(242,232,211,.5)"; c.beginPath(); c.arc(gx, gy, R, 0, Math.PI * 2); c.stroke();
+            c.strokeStyle = `rgba(242,232,211,${tag === "rest" ? 0.3 : 0.5})`; c.beginPath(); c.arc(gx, gy, R, 0, Math.PI * 2); c.stroke();
             if (cast.ball) {
               const ox = cast.ball.x - gx, oy = cast.ball.y - gy, od = Math.hypot(ox, oy) || 1;
-              c.strokeStyle = "rgba(231,201,128,.7)"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(cast.ball.x, cast.ball.y); c.lineTo(cast.ball.x + (ox / od) * (40 + 90 * power), cast.ball.y + (oy / od) * (40 + 90 * power)); c.stroke();
+              c.strokeStyle = `rgba(231,201,128,${tag === "rest" ? 0.4 : 0.7})`; c.lineWidth = 2.5;
+              c.beginPath(); c.moveTo(cast.ball.x, cast.ball.y); c.lineTo(cast.ball.x + (ox / od) * (40 + 90 * power), cast.ball.y + (oy / od) * (40 + 90 * power)); c.stroke();
+            }
+            // while dragging, show the elastic between the ball and the finger
+            if (s.dragging && s.pointer) {
+              c.setLineDash([2, 8]); c.lineWidth = 1.5; c.strokeStyle = "rgba(201,164,92,.45)";
+              c.beginPath(); c.moveTo(cue.x, cue.y); c.lineTo(s.pointer.x, s.pointer.y); c.stroke(); c.setLineDash([]);
             }
             c.restore();
           }
           const pull = R + 6 + power * 80;
           const gap = s.status === "striking" ? pull - (pull - R - 2) * Math.min(1, s.strikeT) : pull;
           drawCue(c, cue.x, cue.y, { x: -dir.x, y: -dir.y }, gap, 640, 12);
-          // power meter under the cue ball
-          if (s.status === "aim") { c.save(); c.globalAlpha = 0.9; c.fillStyle = "rgba(0,0,0,.35)"; c.fillRect(cue.x - 40, cue.y + R + 12, 80, 5); c.fillStyle = power > 0.75 ? "#c9313d" : "#e7c980"; c.fillRect(cue.x - 40, cue.y + R + 12, 80 * power, 5); c.restore(); }
+          if (aiming && meter) {
+            c.save(); c.globalAlpha = 0.9;
+            c.fillStyle = "rgba(0,0,0,.35)"; c.fillRect(cue.x - 40, cue.y + R + 12, 80, 5);
+            c.fillStyle = power > 0.75 ? "#c9313d" : "#e7c980"; c.fillRect(cue.x - 40, cue.y + R + 12, 80 * power, 5);
+            c.restore();
+          }
         }
+        const nextTag = `${tag}:${power.toFixed(2)}`;
+        if (nextTag !== s.aimTag) { s.aimTag = nextTag; if (wrapRef.current) wrapRef.current.dataset.aim = nextTag; }
         drawBall(c, cue.x, cue.y, R, CUE_WHITE);
       }
       raf = requestAnimationFrame(frame);
@@ -180,7 +259,11 @@ export default function PoolGame() {
     raf = requestAnimationFrame(frame);
     return () => {
       cancelAnimationFrame(raf); removeEventListener("portfolio:rerack", onRerack);
-      canvas.removeEventListener("pointermove", onMove); canvas.removeEventListener("pointerleave", onLeave); canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onCancel);
+      canvas.removeEventListener("pointerleave", onLeave);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -192,7 +275,7 @@ export default function PoolGame() {
         <div>
           <div className="plaque">Interlude</div>
           <h2 style={{ marginTop: 22 }}>Your <em>break.</em></h2>
-          <p>{touch ? "Six balls, one cue. Tap where you want the cue ball to go: the further from it you tap, the harder it hits." : "Six balls, one cue. Move the mouse to aim, click to shoot: the further from the cue ball you click, the harder it hits."} Pot them all, or scroll on. Nobody is keeping score.</p>
+          <p>{touch ? "Six balls, one cue. Drag back from the cue ball to aim the stick, pull further for more power, then let go to shoot." : "Six balls, one cue. Move the mouse to aim, click to shoot: the further from the cue ball you click, the harder it hits."} Pot them all, or scroll on. Nobody is keeping score.</p>
         </div>
         <div className="hud" aria-live="polite">
           <span>Shots<b>{shots}</b></span>
@@ -217,7 +300,7 @@ export default function PoolGame() {
         )}
       </div>
       <div className="playFoot">
-        <span className="hint">{touch ? "Tap · pot" : "Aim · click · pot"}{status === "cleared" ? " · cleared" : ""}</span>
+        <span className="hint">{touch ? "Aim · pull back · release" : "Aim · click · pot"}{status === "cleared" ? " · cleared" : ""}</span>
         <div className="cta">
           <button className="btn ghost small" onClick={reset}><span className="ball" style={{ background: "var(--yellow)" }} /> Re-rack table</button>
           <a className="btn small" href="#work" onClick={(e) => { e.preventDefault(); document.getElementById("work")?.scrollIntoView({ behavior: "smooth" }); }}>On to the work ↓</a>
