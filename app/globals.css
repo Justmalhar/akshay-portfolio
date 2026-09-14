@@ -26,7 +26,9 @@ button{font:inherit;color:inherit;background:none;border:0}
 .rail i:nth-child(1){left:-10px;top:-10px}.rail i:nth-child(2){right:-10px;top:-10px}.rail i:nth-child(3){left:-10px;bottom:-10px}.rail i:nth-child(4){right:-10px;bottom:-10px}.rail i:nth-child(5){left:50%;top:-16px;margin-left:-19px}.rail i:nth-child(6){left:50%;bottom:-16px;margin-left:-19px}
 
 /* nav */
-.nav{position:fixed;z-index:60;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:34px 56px}
+.nav{position:fixed;z-index:60;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:28px 56px 40px;transition:background .4s ease}
+/* once the page scrolls, a scrim keeps section content from running under the nav */
+.nav.scrolled{background:linear-gradient(rgba(12,59,46,1) 0,rgba(12,59,46,.96) 45%,rgba(12,59,46,.72) 72%,rgba(12,59,46,0) 100%)}
 .nav .logo{font-family:var(--serif);font-size:28px;letter-spacing:.06em;font-weight:500;display:inline-block;padding:7px 2px}
 .nav .logo i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-left:6px;vertical-align:middle;box-shadow:inset -2px -2px 4px rgba(0,0,0,.4)}
 .nav ul{display:flex;gap:8px;list-style:none}
@@ -45,7 +47,8 @@ button{font:inherit;color:inherit;background:none;border:0}
 .cta{display:flex;gap:14px;flex-wrap:wrap}
 
 /* type + layout */
-.wrap{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:0 60px}
+/* horizontal only: a shorthand here would out-specify section{padding} and flatten every section */
+.wrap{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding-left:60px;padding-right:60px}
 .plaque{display:inline-block;padding:8px 18px;border:1px solid rgba(201,164,92,.6);border-radius:4px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--brass2);background:rgba(0,0,0,.2)}
 h1{font-family:var(--serif);font-weight:300;font-size:clamp(56px,7.6vw,128px);line-height:.92;letter-spacing:-.02em}
 h2{font-family:var(--serif);font-weight:300;font-size:clamp(44px,5.6vw,88px);line-height:.95;letter-spacing:-.02em}
@@ -73,7 +76,7 @@ section{padding:120px 0}
 .hero.gone .scrollhint{opacity:0}
 
 /* playable table */
-.play{padding:110px 0 120px}
+.play{padding-top:110px;padding-bottom:120px}
 .play h2{font-size:clamp(40px,4.8vw,72px)}
 .play .inner{max-width:1000px;margin:0 auto}
 .play .head{display:grid;grid-template-columns:1fr auto;align-items:end;gap:40px;margin-bottom:28px}
@@ -101,7 +104,7 @@ body.has-cursor .winCard{cursor:none}
 .winCta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 
 /* experience */
-.exphead{text-align:center;padding:120px 0 0}
+.exphead{text-align:center;padding-top:120px}
 .exphead p{color:var(--mute);margin-top:18px;font-size:16px;line-height:1.6}
 .expWrap{position:relative;z-index:2}
 .expWrap .pin{position:sticky;top:0;height:100vh;display:grid;grid-template-columns:1.05fr .95fr;gap:70px;align-items:center;max-width:1240px;margin:0 auto;padding:0 60px}
@@ -142,7 +145,13 @@ body.has-cursor .winCard{cursor:none}
 .kitGroup h3{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--brass2);margin-bottom:20px;font-weight:500}
 .kitGroup ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}
 .kitGroup li{font-size:12px;letter-spacing:.04em;padding:7px 13px;border-radius:999px;border:1px solid var(--line);color:#cfd9d1;background:rgba(242,232,211,.03)}
-.kitNote{margin:44px auto 0;max-width:840px;text-align:center;font-size:14px;line-height:1.8;color:var(--mute)}
+.recog{margin:70px auto 0;max-width:1000px;padding:36px 44px;border:1px solid rgba(201,164,92,.45);border-radius:14px;background:linear-gradient(160deg,rgba(0,0,0,.3),rgba(0,0,0,.12));position:relative}
+.recog::before{content:"";position:absolute;inset:7px;border:1px solid rgba(201,164,92,.18);border-radius:9px;pointer-events:none}
+.recogHead{display:flex;align-items:center;justify-content:center;gap:12px;font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:var(--brass2);margin-bottom:30px}
+.recogHead svg{width:24px;height:24px;flex:none}
+.recog ul{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+.recog li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;color:#cfd9d1;font-size:16px;line-height:1.6;font-weight:300}
+.recog li svg{width:26px;height:26px;flex:none;color:var(--brass)}
 
 /* vezilo work-in-progress chip */
 .status{display:inline-flex;align-items:center;gap:12px;padding:14px 22px;border-radius:999px;border:1px dashed rgba(201,164,92,.55);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--brass2)}
@@ -173,7 +182,7 @@ body.has-cursor .winCard{cursor:none}
 .tile .n.small{font-size:40px}
 
 /* contact */
-.contact{min-height:100vh;display:grid;align-content:center;text-align:center;padding:300px 0 120px}
+.contact{min-height:100vh;display:grid;align-content:center;text-align:center;padding-top:300px;padding-bottom:120px}
 .contact .rerack{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--brass2);margin-bottom:26px;opacity:0;transition:opacity .8s}
 .contact.racked .rerack{opacity:1}
 .contact .lead{margin:22px auto 40px;max-width:520px}
@@ -184,14 +193,23 @@ footer{position:relative;z-index:2;padding:34px 56px;display:flex;justify-conten
 
 @media(max-width:960px){
   .wrap,.hero .inner{padding-left:24px;padding-right:24px}
-  .nav{padding:16px 24px 44px;background:linear-gradient(rgba(12,59,46,.99) 0,rgba(12,59,46,.97) 40%,rgba(12,59,46,.85) 65%,rgba(12,59,46,0) 100%)}.nav ul{display:none}.rail{display:none}
+  .nav{padding:16px 24px 44px;background:linear-gradient(rgba(12,59,46,1) 0,rgba(12,59,46,1) 42%,rgba(12,59,46,.88) 68%,rgba(12,59,46,0) 100%)}.nav ul{display:none}.rail{display:none}
   .heroWrap{height:100vh}.scrollhint{display:none}.hero{align-content:start;padding-top:120px}
+  section{padding:78px 0}
+  .play{padding-top:70px;padding-bottom:78px}
+  .exphead{padding-top:78px}
+  .contact{padding-top:96px;padding-bottom:78px}
+  .sec-head{margin-bottom:48px}
+  .recog{margin-top:48px;padding:28px 22px;border-radius:12px}
+  .recogHead{margin-bottom:24px;font-size:12px}
+  .recog ul{grid-template-columns:1fr;gap:22px}
+  .recog li{flex-direction:row;align-items:flex-start;text-align:left;gap:14px}
+  .recog li svg{width:22px;height:22px;margin-top:2px}
 
   /* readable type: nothing body-sized below 16px, nothing at all below 12px */
   .lead{font-size:16px;line-height:1.65}
   .sec-head p,.exphead p,.play .head p,.railWrap .head p{font-size:16px;line-height:1.6}
   .tile p{font-size:16px;line-height:1.6}
-  .kitNote{font-size:14px;line-height:1.75}
   .plaque{font-size:12.5px;letter-spacing:.16em;padding:9px 16px}
   .tags span{font-size:12.5px;padding:7px 12px}
   .kitGroup h3{font-size:12.5px;letter-spacing:.16em}

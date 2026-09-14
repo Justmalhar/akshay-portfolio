@@ -133,8 +133,14 @@ export const toolkit = {
     { group: "Distributed systems", items: ["Event-driven microservices", "Async REST APIs", "RBAC & multi-tenancy", "Data contracts", "Idempotency", "Observability"] },
     { group: "Languages & cloud", items: ["Python", "Scala", "Java", "SQL", "AWS", "GCP", "Docker", "Jenkins", "CI/CD"] },
   ],
-  footnote:
-    "Walmart Bravo Award for infrastructure, cloud cost and Spark performance work · two internal tech talks, one on agents for engineering workflow automation and one on cutting 73 minutes from CI/CD · Google Cloud MLOps for Generative AI badge.",
+  recognition: {
+    title: "Recognition",
+    items: [
+      { icon: "trophy" as const, text: "Walmart Bravo Award for infrastructure, cloud cost and Spark performance work." },
+      { icon: "talk" as const, text: "Two internal tech talks: agents for engineering workflow automation, and cutting 73 minutes from CI/CD." },
+      { icon: "badge" as const, text: "Google Cloud MLOps for Generative AI badge." },
+    ],
+  },
 };
 
 export const vezilo = {

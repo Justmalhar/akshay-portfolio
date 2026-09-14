@@ -15,6 +15,13 @@ const items = [
 
 export default function Nav() {
   const [active, setActive] = useState("");
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(scrollY > 40);
+    onScroll();
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => removeEventListener("scroll", onScroll);
+  }, []);
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => { if (e.isIntersecting) setActive(e.target.id); }),
@@ -24,7 +31,7 @@ export default function Nav() {
     return () => io.disconnect();
   }, []);
   return (
-    <nav className="nav" aria-label="Primary">
+    <nav className={`nav${scrolled ? " scrolled" : ""}`} aria-label="Primary">
       <a className="logo" href="#top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label={`${site.name}, back to top`}>
         {site.name.toUpperCase()}<i />
       </a>
